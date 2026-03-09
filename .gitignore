@@ -1,46 +1,54 @@
- # Python bytecode and build artifacts
- __pycache__/
- *.py[cod]
- *.pyo
- *.pyd
- *.so
- *.egg-info/
- .eggs/
- build/
- dist/
- *.log
+# Python bytecode and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+*.log
 
- # Virtual environments
- .venv/
- venv/
- env/
- ENV/
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
- # OS / editor cruft
- .DS_Store
- .idea/
- .vscode/
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
 
- # Environment files
- .env
- .env.*
- *.env
- *.env.*
+# Environment files
+.env
+.env.*
+*.env
+*.env.*
 
- # Revolut / banking secrets (keep out of git)
- rev/revolut.env
- rev/revolut-api-cert/
- rev/*.pem
- rev/*.key
- rev/*.p12
- rev/*.pfx
+# Revolut / banking secrets (keep out of git)
+/rev/revolut.env
+/rev/revolut-api-cert/
+/rev/revolut-api-cert/**
+/rev/*.pem
+/rev/*.key
+/rev/*.p12
+/rev/*.pfx
 
- # Generic key / cert material (treated as secrets by default)
- *.pem
- *.key
- *.p12
- *.pfx
- *.crt
- *.cer
- *.der
+# Generic key / cert material (treated as secrets by default)
+/*.pem
+*.pem
+/*.key
+*.key
+/*.p12
+*.p12
+/*.pfx
+*.pfx
+/*.crt
+*.crt
+/*.cer
+*.cer
+/*.der
+*.der
 
