@@ -64,7 +64,22 @@ decrypt_if_missing \
   "rev/revolut-api-cert/revolut_private.key.enc"
 
 echo "[run.sh] Decryption checks finished."
+
+if [[ "${1-}" == "revolut-txs" ]]; then
+  echo "[run.sh] Loading Revolut env into subshell..."
+  eval "$(sops -d --input-type dotenv --output-type dotenv rev/revolut.env.sops.env)"
+
+  REV_DIR="$(pwd)/rev"
+  export REVOLUT_CERT_PATH="${REVOLUT_CERT_PATH:-"$REV_DIR/revolut-api-cert/revolut_public.crt"}"
+  export REVOLUT_KEY_PATH="${REVOLUT_KEY_PATH:-"$REV_DIR/revolut-api-cert/revolut_private.key"}"
+
+  echo "[run.sh] Running Revolut transactions listing..."
+  .venv/bin/python rev/revolut_list_transactions.py
+  exit 0
+fi
+
 echo "[run.sh] You can now, for example:"
 echo "  - load env:   eval \"\$(sops -d --input-type dotenv --output-type dotenv rev/revolut.env.sops.env)\""
 echo "  - run smoke:  source .venv/bin/activate && (cd rev && python revolut_smoke.py)"
+echo "  - list txs:   ./run.sh revolut-txs"
 
