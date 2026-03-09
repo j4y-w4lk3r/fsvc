@@ -7,6 +7,19 @@ cd "$(dirname "${BASH_SOURCE[0]:-$0}")"
 # Make sure GPG can talk to the current TTY (needed for YubiKey PIN)
 export GPG_TTY="${GPG_TTY:-$(tty)}"
 
+ensure_venv() {
+  if [[ -d ".venv" ]]; then
+    echo "[run.sh] .venv already exists, skipping venv creation."
+    return 0
+  fi
+
+  echo "[run.sh] Creating Python virtualenv in .venv..."
+  python3 -m venv .venv
+
+  echo "[run.sh] Installing Python dependencies..."
+  .venv/bin/python -m pip install -r ing/requirements.txt -r rev/requirements.txt
+}
+
 decrypt_if_missing() {
   local plain="$1"
   local enc="$2"
@@ -29,6 +42,9 @@ decrypt_if_missing() {
     sops -d "$enc" > "$plain"
   fi
 }
+
+echo "[run.sh] Ensuring Python virtualenv and dependencies..."
+ensure_venv
 
 echo "[run.sh] Checking decrypted secrets..."
 
