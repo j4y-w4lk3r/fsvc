@@ -27,7 +27,7 @@ ENV/
 *.env
 *.env.*
 
-# Revolut / banking secrets (keep out of git)
+# Revolut / banking secrets (keep out of git in plaintext)
 /rev/revolut.env
 /rev/revolut-api-cert/
 /rev/revolut-api-cert/**
@@ -36,7 +36,7 @@ ENV/
 /rev/*.p12
 /rev/*.pfx
 
-# Generic key / cert material (treated as secrets by default)
+# Generic key / cert material (treated as secrets by default, plaintext not tracked)
 /*.pem
 *.pem
 /*.key
@@ -51,4 +51,8 @@ ENV/
 *.cer
 /*.der
 *.der
+
+# Allow committing encrypted variants
+!*.sops.*
+!*.enc
 

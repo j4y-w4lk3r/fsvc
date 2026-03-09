@@ -1,0 +1,5 @@
+creation_rules:
+  # Encrypt any *.sops.* or *.enc secret files with your YubiKey-backed GPG key
+  - path_regex: '.*(\.sops\.env|\.sops\.json|\.sops\.yaml|\.enc)$'
+    pgp: '1C1764621CA628034DAC9B3D53B616EE56049812'
+
