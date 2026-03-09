@@ -69,6 +69,16 @@ if [[ "${1-}" == "revolut-txs" ]]; then
   echo "[run.sh] Loading Revolut env into subshell..."
   eval "$(sops -d --input-type dotenv --output-type dotenv rev/revolut.env.sops.env)"
 
+  echo "[run.sh] Refreshing Revolut access token using refresh_token..."
+  .venv/bin/python rev/revolut_refresh_token.py || echo "[run.sh] WARNING: refresh_token flow failed; continuing with existing token."
+
+  echo "[run.sh] Updating encrypted env snapshot with latest tokens..."
+  cp rev/revolut.env rev/revolut.env.sops.env
+  sops --encrypt --in-place --input-type dotenv --output-type dotenv rev/revolut.env.sops.env
+
+  echo "[run.sh] Reloading Revolut env from updated encrypted file..."
+  eval "$(sops -d --input-type dotenv --output-type dotenv rev/revolut.env.sops.env)"
+
   REV_DIR="$(pwd)/rev"
   # Force paths to use the repo-local cert/key, overriding any older values
   export REVOLUT_CERT_PATH="$REV_DIR/revolut-api-cert/revolut_public.crt"
