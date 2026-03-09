@@ -63,6 +63,11 @@ decrypt_if_missing \
   "rev/revolut-api-cert/revolut_private.key" \
   "rev/revolut-api-cert/revolut_private.key.enc"
 
+# Revolut public certificate
+decrypt_if_missing \
+  "rev/revolut-api-cert/revolut_public.crt" \
+  "rev/revolut-api-cert/revolut_public.crt.enc"
+
 echo "[run.sh] Decryption checks finished."
 
 if [[ "${1-}" == "revolut-txs" ]]; then
