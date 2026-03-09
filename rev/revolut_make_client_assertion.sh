@@ -7,7 +7,7 @@
 #   CLIENT_ID   = first arg, or $REVOLUT_CLIENT_ID
 #   ISS         = second arg, or $REVOLUT_ISS
 #   EXP_MINUTES = 10
-#   CERT_DIR    = "$HOME/revolut-api-cert"
+#   CERT_DIR    = "<repo>/rev/revolut-api-cert" (by default)
 #
 # It will create/update the following files in CERT_DIR:
 #   - header.json
@@ -18,10 +18,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
 CLIENT_ID="${1:-${REVOLUT_CLIENT_ID:-}}"
 ISS="${2:-${REVOLUT_ISS:-}}"
 EXP_MINUTES="${3:-10}"
-CERT_DIR="${4:-"$HOME/revolut-api-cert"}"
+CERT_DIR="${4:-"$SCRIPT_DIR/revolut-api-cert"}"
 
 if [[ -z "$CLIENT_ID" || -z "$ISS" ]]; then
   echo "Usage: $0 [CLIENT_ID] [ISS] [EXP_MINUTES] [CERT_DIR]" >&2

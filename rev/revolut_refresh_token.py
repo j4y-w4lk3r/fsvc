@@ -34,7 +34,8 @@ def make_client_assertion() -> None:
 
 
 def load_client_assertion() -> str:
-    assertion_path = Path(os.path.expanduser("~/revolut-api-cert/client_assertion.txt"))
+    # Keep the assertion file alongside the repo's Revolut cert material
+    assertion_path = script_dir() / "revolut-api-cert" / "client_assertion.txt"
     if not assertion_path.exists():
         raise RuntimeError(f"client_assertion.txt not found at {assertion_path}")
     return assertion_path.read_text().strip()
