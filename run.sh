@@ -70,8 +70,9 @@ if [[ "${1-}" == "revolut-txs" ]]; then
   eval "$(sops -d --input-type dotenv --output-type dotenv rev/revolut.env.sops.env)"
 
   REV_DIR="$(pwd)/rev"
-  export REVOLUT_CERT_PATH="${REVOLUT_CERT_PATH:-"$REV_DIR/revolut-api-cert/revolut_public.crt"}"
-  export REVOLUT_KEY_PATH="${REVOLUT_KEY_PATH:-"$REV_DIR/revolut-api-cert/revolut_private.key"}"
+  # Force paths to use the repo-local cert/key, overriding any older values
+  export REVOLUT_CERT_PATH="$REV_DIR/revolut-api-cert/revolut_public.crt"
+  export REVOLUT_KEY_PATH="$REV_DIR/revolut-api-cert/revolut_private.key"
 
   echo "[run.sh] Running Revolut transactions listing..."
   .venv/bin/python rev/revolut_list_transactions.py
