@@ -29,12 +29,21 @@ ENV/
 
 # Revolut / banking secrets (keep out of git in plaintext)
 /rev/revolut.env
-/rev/revolut-api-cert/
-/rev/revolut-api-cert/**
+# Do not track plaintext key/cert material under rev/, but allow encrypted .enc files
 /rev/*.pem
 /rev/*.key
 /rev/*.p12
 /rev/*.pfx
+/rev/*.crt
+/rev/*.cer
+/rev/*.der
+/rev/revolut-api-cert/*.pem
+/rev/revolut-api-cert/*.key
+/rev/revolut-api-cert/*.p12
+/rev/revolut-api-cert/*.pfx
+/rev/revolut-api-cert/*.crt
+/rev/revolut-api-cert/*.cer
+/rev/revolut-api-cert/*.der
 
 # Generic key / cert material (treated as secrets by default, plaintext not tracked)
 /*.pem
