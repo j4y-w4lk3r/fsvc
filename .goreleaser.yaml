@@ -1,0 +1,170 @@
+# goreleaser config for fsvc.
+#
+# Triggered by `.github/workflows/release.yml` on `git push origin vX.Y.Z`:
+#   1. Cross-compiles `cmd/fsvc` for darwin/linux/windows × amd64/arm64 (+ linux/armv7).
+#   2. Tarballs each binary with LICENSE + README.md + config.example.toml alongside.
+#   3. Computes checksums.txt over all archives.
+#   4. Creates the GitHub release with all artifacts attached.
+#   5. Renders Formula/fsvc.rb pointing at the per-platform tarballs and
+#      pushes it to j4y-w4lk3r/homebrew-fsvc (auth via HOMEBREW_TAP_GITHUB_TOKEN).
+#   6. Renders fsvc-bin AUR PKGBUILD + .SRCINFO and pushes to
+#      ssh://aur@aur.archlinux.org/fsvc-bin.git (auth via AUR_SSH_PRIVATE_KEY).
+#
+# Local dry-run (no publish, builds in dist/):
+#   goreleaser release --snapshot --clean
+# Local single-arch build (fastest sanity check):
+#   goreleaser build --snapshot --clean --single-target
+
+version: 2
+
+project_name: fsvc
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fsvc
+    main: ./cmd/fsvc
+    binary: fsvc
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      # Pi 2/3, most Cortex-A SBCs. v6 (Pi 1, Pi Zero) too rare to bother.
+      - "7"
+    ignore:
+      # darwin/arm doesn't exist (Apple is arm64-only).
+      - goos: darwin
+        goarch: arm
+      # Skip 32-bit + 64-bit Windows ARM (audience essentially zero today).
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: fsvc
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # Format examples:
+    #   fsvc_0.1.0_Darwin_arm64.tar.gz
+    #   fsvc_0.1.0_Linux_armv7.tar.gz
+    #   fsvc_0.1.0_Windows_x86_64.zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if and (eq .Arch "arm") (eq .Arm "7") }}armv7
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+      - config.example.toml
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - 'merge conflict'
+      - '(?i)^typo'
+
+# Auto-publishes a Homebrew Cask to j4y-w4lk3r/homebrew-fsvc. Requires
+# repo secret HOMEBREW_TAP_GITHUB_TOKEN (fine-grained PAT with
+# Contents:read+write on j4y-w4lk3r/homebrew-fsvc).
+#
+# Note on Cask vs Formula: goreleaser deprecated the `brews:` block in
+# v2.16. For pre-built binaries (Go CLIs etc.), Cask is the right
+# packaging mode anyway — Formula was historically a hack. The tap
+# repo lives under `Casks/` (not `Formula/`); install command is the
+# same: `brew install j4y-w4lk3r/fsvc/fsvc`.
+#
+# IMPORTANT — quarantine bit: macOS Gatekeeper sets the
+# `com.apple.quarantine` xattr on every binary downloaded by Homebrew.
+# Unsigned binaries (fsvc isn't notarized — Apple developer fee not
+# justified for a personal CLI) hit "App is damaged and cannot be
+# opened" without intervention. The post-install hook strips the bit
+# so the binary runs. This is goreleaser's documented workaround for
+# unnotarized casks (https://goreleaser.com/customization/homebrew_casks/).
+homebrew_casks:
+  - name: fsvc
+    binaries:
+      - fsvc
+    repository:
+      owner: j4y-w4lk3r
+      name: homebrew-fsvc
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/j4y-w4lk3r/fsvc"
+    description: "Financial-services CLI: Revolut Business today, ING tomorrow. mTLS + JWT + OAuth client-assertion in one binary."
+    commit_author:
+      name: fsvc-release-bot
+      email: fsvc-release-bot@users.noreply.github.com
+    commit_msg_template: "fsvc: bump to {{ .Tag }}"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fsvc"]
+          end
+
+# Auto-publishes the AUR package `fsvc-bin` to aur.archlinux.org on every
+# release. Pulls the linux/amd64 archive that the builds:/archives:
+# stages already produce, generates a PKGBUILD + .SRCINFO referencing it
+# by URL+SHA256, and pushes via SSH using the AUR_SSH_PRIVATE_KEY secret.
+aurs:
+  - name: fsvc-bin
+    homepage: "https://github.com/j4y-w4lk3r/fsvc"
+    description: "Financial-services CLI: Revolut Business today, ING tomorrow."
+    maintainers:
+      - "j4y <j4y_w4lk3r@pobox.com>"
+    license: "MIT"
+    private_key: '{{ .Env.AUR_SSH_PRIVATE_KEY }}'
+    git_url: "ssh://aur@aur.archlinux.org/fsvc-bin.git"
+    skip_upload: false
+    provides:
+      - fsvc
+    conflicts:
+      - fsvc
+      - fsvc-git
+    depends:
+      - glibc
+    optdepends:
+      - 'gnupg: fsvc bootstrap shells out to ykw which shells out to gpg'
+      - 'ykw: fsvc bootstrap shells out to ykw decrypt for the encrypted creds'
+      - 'bbm: fsvc bootstrap shells out to bbm pull to fetch encrypted creds from B2'
+    commit_author:
+      name: fsvc-release-bot
+      email: fsvc-release-bot@users.noreply.github.com
+    commit_msg_template: "fsvc-bin: bump to {{ .Tag }}"
+    package: |-
+      install -Dm755 "./fsvc" "${pkgdir}/usr/bin/fsvc"
+
+      install -Dm644 "./LICENSE"            "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+      install -Dm644 "./README.md"          "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+      install -Dm644 "./config.example.toml" "${pkgdir}/usr/share/doc/${pkgname}/config.example.toml"
