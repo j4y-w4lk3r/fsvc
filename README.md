@@ -4,14 +4,40 @@ A focused CLI for personal banking APIs (Revolut Business today, ING tomorrow), 
 
 Sister tool to [`rui`](https://github.com/j4y-w4lk3r/rui) (router TUI), [`bbm`](https://github.com/j4y-w4lk3r/bbm) (Backblaze B2 manager), and [`ykw`](https://github.com/j4y-w4lk3r/ykw) (YubiKey GPG workflow). Same packaging shape, same release cadence, same single-tag-triggers-three-channels distribution (planned for v0.1.0+).
 
-## Status: v0.0.x — scaffold only
+## Status: v0.0.2-rc.1 — Revolut Business read-only, live-tested against production
 
-This repo currently holds the Go scaffold and the original Python codebase under [`python-legacy/`](./python-legacy). The Revolut Business client, JWT/OAuth flow, and `ykw decrypt` integration land in v0.1.x.
+The Revolut Business client is implemented, unit-tested, and validated against the production b2b.revolut.com endpoint (accounts + cards + 30-day txs all returning real data). What you can do today:
 
+```bash
+fsvc cert --copy                     # generate the mTLS keypair + copy public PEM
+                                     # (paste into Revolut Business → Settings → APIs → Add cert)
+fsvc init --client-id <ID> \
+          --redirect-uri <URI>       # write ~/.config/fsvc/config.toml
+fsvc revolut authorize               # opens browser, captures code, exchanges for tokens
+                                     # (auto-detects http://localhost vs https:// redirect URI)
+fsvc revolut accounts                # list accounts (with per-currency totals)
+fsvc revolut cards                   # list cards
+fsvc revolut txs --days 30           # list recent transactions
+fsvc revolut txs --json | jq .       # raw JSON for piping
+fsvc revolut status                  # local diagnostic (token freshness, config sanity)
 ```
-fsvc <command>
-  → "fsvc <command>: not yet implemented (target: v0.1.0)"
-```
+
+`fsvc revolut authorize` runs in two modes depending on your `redirect_uri`:
+
+- **localhost mode** (`http://localhost:PORT/...`): spawns a tiny one-shot HTTP server, opens the browser, captures the code automatically. Best for sandbox/dev.
+- **paste-back mode** (any `https://` URL — Revolut production refuses HTTP redirect URIs): opens the browser, prompts you to paste the redirected URL or just the code. Best for production.
+
+403 responses with code `9002` / `33004` (IP whitelisting) get a friendly hint pointing at the Revolut portal — including the `curl ifconfig.me` one-liner to fetch your current public IP.
+
+Distribution (Homebrew + AUR + meta-suite) is queued for v0.1.0; the tag triggers when goreleaser + CI are wired.
+
+What's preserved under [`python-legacy/`](./python-legacy):
+
+- `rev/revolut_cert_setup.sh` — port lives in `internal/command/cert.go`
+- `rev/revolut_make_client_assertion.sh` — port lives in `internal/revolut/jwt.go`
+- `rev/revolut_refresh_token.py` + `revolut_exchange_code.py` — port lives in `internal/revolut/auth.go`
+- `rev/revolut_smoke.py` + `revolut_list_transactions.py` — port lives in `internal/revolut/api.go` + `internal/command/revolut.go`
+- `ing/` — kept verbatim for the v0.3.0+ ING port
 
 Why a Python → Go rewrite rather than reviving the existing scripts:
 
@@ -19,24 +45,33 @@ Why a Python → Go rewrite rather than reviving the existing scripts:
 2. **Secrets story.** The legacy code uses [SOPS](https://github.com/getsops/sops). The whole `bu`-bundle / `ykw encrypt` story is built around per-recipient YubiKey-bound GPG, and `ykw` already does this end-to-end. Re-encrypting through `ykw` removes the SOPS dependency and ties fsvc into the suite's encryption + bootstrap story.
 3. **TUI room.** The eventual shape of fsvc is interactive — see balances, scrub through transactions, manually classify. A Bubble Tea TUI is far easier in Go than Python.
 
-The `python-legacy/` directory is preserved for reference (the OAuth flow, mTLS keypair generation, and JWT client_assertion logic are all worth porting carefully). It is **not** built or installed.
+The `python-legacy/` directory is preserved for reference. It is **not** built or installed.
 
 ## Roadmap
 
-### v0.0.1 — scaffold (current)
+### v0.0.1 — scaffold
 - [x] Go module structure (`cmd/fsvc`, `internal/{command,config,revolut}`)
 - [x] Subcommand dispatcher with placeholders
 - [x] LICENSE + .gitignore + README
 - [x] Python codebase preserved under `python-legacy/`
 
-### v0.1.0 — Revolut Business read-only
-- [ ] `fsvc cert` — generate Revolut mTLS keypair (port of `python-legacy/rev/revolut_cert_setup.sh`)
-- [ ] `fsvc revolut auth` — JWT client_assertion + refresh_token flow (port of `revolut_make_client_assertion.sh` + `revolut_refresh_token.py`)
-- [ ] `fsvc revolut accounts` — list accounts (port of `revolut_smoke.py`'s `get_accounts`)
-- [ ] `fsvc revolut cards` — list cards (port of `revolut_smoke.py`'s `get_cards`)
-- [ ] `fsvc revolut txs` — list transactions (port of `revolut_list_transactions.py`)
-- [ ] Config + cred resolution: `~/.config/fsvc/config.toml` + `*.gpg` files decrypted via `ykw decrypt` on demand
-- [ ] `fsvc bootstrap` — pull all `b2://j4y-bu/fsvc/*.gpg` via `bbm`, decrypt via `ykw`, materialize into `$XDG_CONFIG_HOME/fsvc/`
+### v0.0.2-rc.1 — Revolut Business read-only (live-tested)
+- [x] `fsvc cert` — generate Revolut mTLS keypair + `--print` / `--copy` for portal handoff
+- [x] `fsvc init` — write `~/.config/fsvc/config.toml` from CLI flags
+- [x] `fsvc revolut authorize` — automated localhost / paste-back OAuth code-for-tokens flow
+- [x] `fsvc revolut exchange-code <CODE>` — manual one-shot variant (still supported)
+- [x] `fsvc revolut auth` — JWT client_assertion + refresh_token rotation
+- [x] `fsvc revolut accounts` — list accounts with per-currency totals
+- [x] `fsvc revolut cards` — list cards
+- [x] `fsvc revolut txs` — list transactions (`--days`, `--from`, `--to`, `--account`, `--json`)
+- [x] `fsvc revolut status` — local diagnostic (token freshness, config sanity)
+- [x] Friendly hint on Revolut error codes 9002 / 33004 (IP whitelisting)
+- [x] Config in `$XDG_CONFIG_HOME/fsvc/config.toml`; atomic-rename Save on token rotation
+- [x] Unit tests: JWT round-trip, config save/load, env override, code-extraction parser
+- [x] Live-API smoke test against production Revolut Business endpoint
+
+### v0.1.0 — distribution
+- [ ] `fsvc bootstrap` — pull all `b2://j4y-bu/fsvc/*.gpg` via `bbm`, decrypt via `ykw`
 - [ ] goreleaser + Homebrew tap (`j4y-w4lk3r/homebrew-fsvc`) + AUR (`fsvc-bin`)
 - [ ] CI workflows (`go vet`, `go test`, goreleaser snapshot build)
 

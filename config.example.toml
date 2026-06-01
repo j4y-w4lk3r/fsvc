@@ -1,0 +1,41 @@
+# fsvc configuration. Copy this to:
+#   ~/.config/fsvc/config.toml      (default)
+#   $XDG_CONFIG_HOME/fsvc/config.toml
+# or pass an explicit path with `fsvc -c <path>`.
+#
+# Mode 0600 is recommended (the file holds an OAuth refresh_token,
+# which is effectively a long-lived password). `fsvc revolut auth`
+# rewrites this file atomically on every refresh.
+
+[revolut]
+# Production Revolut Business endpoint. Use the sandbox URL during
+# initial integration testing if you have a sandbox account:
+#   base_url = "https://sandbox-b2b.revolut.com/api/1.0"
+base_url = "https://b2b.revolut.com/api/1.0"
+
+# CLIENT_ID is issued by Revolut after you upload your public cert in
+# Revolut Business → Settings → APIs.
+client_id = ""
+
+# ISS is the JWT issuer claim. Revolut requires this to match the
+# host portion of your registered redirect_uri. Examples:
+#   redirect_uri = http://localhost:8080/callback  -> iss = "localhost"
+#   redirect_uri = https://fsvc.local/cb           -> iss = "fsvc.local"
+iss = ""
+
+# RedirectURI is the OAuth redirect URI registered with Revolut. Must
+# match byte-for-byte what's in Revolut Business → Settings → APIs.
+# `fsvc revolut authorize` parses this to know which port to listen on.
+redirect_uri = "http://localhost:8080/callback"
+
+# Paths to the mTLS keypair. `fsvc cert` writes them here by default.
+# ~ is expanded to $HOME at load time.
+cert_path = "~/.config/fsvc/revolut-api-cert/revolut_public.crt"
+key_path  = "~/.config/fsvc/revolut-api-cert/revolut_private.key"
+
+# Tokens. Leave both empty on first run; `fsvc revolut exchange-code
+# <CODE>` will populate them after the OAuth consent flow. Subsequent
+# `fsvc revolut auth` calls (auto-triggered by accounts/cards/txs
+# subcommands) keep them rotated.
+access_token = ""
+refresh_token = ""

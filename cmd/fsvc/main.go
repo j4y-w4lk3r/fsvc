@@ -4,24 +4,24 @@
 // encrypted at rest via `ykw encrypt`, decrypted on demand with a
 // YubiKey, never written to disk in plaintext.
 //
-// Status (v0.0.x): scaffold only. The Revolut endpoints, OAuth/JWT flow,
-// and ykw-decrypt integration land in v0.1.x. See README.md for the
-// roadmap.
+// Subcommand layout:
 //
-// Subcommand layout (target shape, NOT yet implemented):
-//
-//	fsvc init                         interactive setup (config + cred bootstrap)
 //	fsvc cert                         generate Revolut mTLS keypair
+//	fsvc revolut exchange-code <CODE> trade an OAuth auth code for refresh+access tokens
 //	fsvc revolut auth                 refresh access_token via JWT client_assertion
 //	fsvc revolut accounts             list accounts
 //	fsvc revolut cards                list cards
-//	fsvc revolut txs [--account ID] [--from DATE] [--to DATE]
-//	                                  list transactions
+//	fsvc revolut txs [flags]          list transactions
+//
+// Planned (v0.1.x):
+//
+//	fsvc init                         interactive setup
 //	fsvc bootstrap                    pull encrypted creds from b2://j4y-bu/fsvc/
 //
 // Global flags (BEFORE the subcommand name):
 //
 //	-c PATH    config file (overrides $XDG_CONFIG_HOME/fsvc/config.toml)
+//	-V         verbose output
 //	-v         print version and exit
 //	-h         show help
 //
@@ -32,6 +32,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/j4y-w4lk3r/fsvc/internal/command"
 )
 
 // Stamped at link time by goreleaser via -ldflags
@@ -52,7 +54,8 @@ func main() {
 
 	gfs := flag.NewFlagSet("fsvc", flag.ContinueOnError)
 	gfs.SetOutput(os.Stderr)
-	_ = gfs.String("c", "", "config file path (overrides $XDG_CONFIG_HOME/fsvc/config.toml)")
+	configPath := gfs.String("c", "", "config file path (overrides $XDG_CONFIG_HOME/fsvc/config.toml)")
+	verbose := gfs.Bool("V", false, "verbose output")
 	showVer := gfs.Bool("v", false, "print version and exit")
 	showVerLong := gfs.Bool("version", false, "print version and exit")
 	showHelp := gfs.Bool("h", false, "show help")
@@ -77,50 +80,81 @@ func main() {
 		os.Exit(2)
 	}
 
+	g := &command.Globals{
+		ConfigPath: *configPath,
+		Verbose:    *verbose,
+		Version:    version,
+		Commit:     commit,
+		Date:       date,
+	}
+
 	sub := rest[0]
+	subArgs := rest[1:]
+
+	var err error
 	switch sub {
-	case "help":
+	case "help", "-h", "--help":
 		printUsage(os.Stdout)
 		return
-	case "init", "cert", "revolut", "bootstrap":
-		// Recognized but not yet implemented. Better UX than a generic
-		// "unknown command" so users (and the README) can tell us
-		// apart from typos.
-		fmt.Fprintf(os.Stderr, "fsvc %s: not yet implemented (target: v0.1.0)\n", sub)
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "fsvc is currently scaffold-only. Track progress at:")
-		fmt.Fprintln(os.Stderr, "  https://github.com/j4y-w4lk3r/fsvc")
+	case "cert":
+		err = command.RunCert(g, subArgs)
+	case "init":
+		err = command.RunInit(g, subArgs)
+	case "revolut":
+		err = command.RunRevolut(g, subArgs)
+	case "bootstrap":
+		// Recognized but not yet implemented. Distinguishes "planned"
+		// from "typo" so users (and the README) can tell apart.
+		fmt.Fprintf(os.Stderr, "fsvc bootstrap: not yet implemented (target: v0.1.x)\n\n")
+		fmt.Fprintln(os.Stderr, "Workaround for now — pull the encrypted bundle manually:")
+		fmt.Fprintln(os.Stderr, "  bbm pull fsvc/config.toml.gpg /tmp/fsvc-config.toml.gpg")
+		fmt.Fprintln(os.Stderr, "  ykw decrypt /tmp/fsvc-config.toml.gpg ~/.config/fsvc/config.toml")
 		os.Exit(2)
 	default:
 		fmt.Fprintf(os.Stderr, "fsvc: unknown command %q\n\n", sub)
 		printUsage(os.Stderr)
 		os.Exit(2)
 	}
+
+	if err != nil {
+		// Subcommands return errors instead of os.Exiting directly so we
+		// can render a single "fsvc: <err>" line in one place.
+		fmt.Fprintf(os.Stderr, "fsvc: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func printUsage(w *os.File) {
 	fmt.Fprintln(w, "fsvc — financial-services CLI for the j4y suite")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Status: scaffold only. v0.1.0 will ship the Revolut Business client.")
-	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  fsvc [GLOBAL FLAGS] <subcommand> [SUBCOMMAND FLAGS] [ARGS...]")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Planned subcommands:")
-	fmt.Fprintln(w, "  init                  interactive setup (config + cred bootstrap)")
+	fmt.Fprintln(w, "Subcommands:")
 	fmt.Fprintln(w, "  cert                  generate Revolut mTLS keypair")
+	fmt.Fprintln(w, "  init                  scaffold ~/.config/fsvc/config.toml from CLI flags")
+	fmt.Fprintln(w, "  revolut authorize     one-shot OAuth flow (browser + local server + token swap)")
+	fmt.Fprintln(w, "  revolut exchange-code <CODE>")
+	fmt.Fprintln(w, "                        manual: trade an OAuth auth code for tokens")
 	fmt.Fprintln(w, "  revolut auth          refresh access_token via JWT client_assertion")
-	fmt.Fprintln(w, "  revolut accounts      list accounts")
+	fmt.Fprintln(w, "  revolut accounts      list Revolut Business accounts (with totals)")
 	fmt.Fprintln(w, "  revolut cards         list cards")
-	fmt.Fprintln(w, "  revolut txs           list transactions")
+	fmt.Fprintln(w, "  revolut txs           list transactions (--days, --account, --json, ...)")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Planned (v0.1.x):")
 	fmt.Fprintln(w, "  bootstrap             pull encrypted creds from b2://j4y-bu/fsvc/")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Global flags:")
 	fmt.Fprintln(w, "  -c PATH               config file (default: $XDG_CONFIG_HOME/fsvc/config.toml)")
+	fmt.Fprintln(w, "  -V                    verbose")
 	fmt.Fprintln(w, "  -v / --version        print version and exit")
 	fmt.Fprintln(w, "  -h / --help           show this help")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "While scaffold-only, every recognized subcommand exits 2 with a")
-	fmt.Fprintln(w, "'not yet implemented' note. Track progress + roadmap at:")
-	fmt.Fprintln(w, "  https://github.com/j4y-w4lk3r/fsvc")
+	fmt.Fprintln(w, "First-run walkthrough:")
+	fmt.Fprintln(w, "  1. fsvc cert                              # generate the mTLS keypair")
+	fmt.Fprintln(w, "  2. (upload .crt to Revolut Business → Settings → APIs)")
+	fmt.Fprintln(w, "  3. fsvc init --client-id <ID> \\           # scaffold config.toml")
+	fmt.Fprintln(w, "                --redirect-uri http://localhost:8080/callback")
+	fmt.Fprintln(w, "  4. fsvc revolut authorize                 # browser opens, code captured automatically")
+	fmt.Fprintln(w, "  5. fsvc revolut accounts                  # smoke test")
 }
