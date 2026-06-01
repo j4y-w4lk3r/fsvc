@@ -5,7 +5,13 @@ import sys
 import requests
 import subprocess
 
-from revolut_refresh_token import script_dir, ensure_env, make_client_assertion, load_client_assertion, update_env_file
+from revolut_refresh_token import (
+  ensure_mtls_env,
+  load_client_assertion,
+  make_client_assertion,
+  script_dir,
+  update_env_file,
+)
 
 
 def ensure_auth_code(code: str | None) -> str:
@@ -45,8 +51,8 @@ def request_tokens_with_code(auth_code: str, client_assertion: str) -> dict:
 
 
 def main() -> None:
-  # We reuse the same env checks as the refresh script (cert paths, etc.)
-  ensure_env()
+  # Only mTLS is required for authorization_code exchange.
+  ensure_mtls_env()
 
   # Get the authorization code from CLI or env
   auth_code = ensure_auth_code(sys.argv[1] if len(sys.argv) > 1 else None)

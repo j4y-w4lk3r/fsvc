@@ -11,16 +11,20 @@ KEY_PATH = os.environ.get("REVOLUT_KEY_PATH")
 REFRESH_TOKEN = os.environ.get("REVOLUT_REFRESH_TOKEN")
 
 
-def ensure_env() -> None:
+def ensure_mtls_env() -> None:
     missing = []
     if not CERT_PATH:
         missing.append("REVOLUT_CERT_PATH")
     if not KEY_PATH:
         missing.append("REVOLUT_KEY_PATH")
-    if not REFRESH_TOKEN:
-        missing.append("REVOLUT_REFRESH_TOKEN")
     if missing:
         raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
+
+
+def ensure_refresh_env() -> None:
+    ensure_mtls_env()
+    if not REFRESH_TOKEN:
+        raise RuntimeError("Missing required env var: REVOLUT_REFRESH_TOKEN")
 
 
 def script_dir() -> Path:
@@ -80,7 +84,7 @@ def update_env_file(access_token: str, refresh_token: str | None) -> None:
 
 
 def main() -> None:
-    ensure_env()
+    ensure_refresh_env()
     print("Regenerating client assertion (JWT)...")
     make_client_assertion()
     assertion = load_client_assertion()

@@ -14,7 +14,8 @@
 #   - payload.json
 #   - client_assertion.txt
 #
-# The resulting JWT is printed to stdout at the end.
+# By default, the resulting JWT is NOT printed (avoid leaking secrets to logs).
+# Set REVOLUT_PRINT_JWT=1 to print it.
 
 set -euo pipefail
 
@@ -39,15 +40,20 @@ echo "Cert dir:    $CERT_DIR"
 mkdir -p "$CERT_DIR"
 cd "$CERT_DIR"
 
-# Ensure we have a private key named privatecert.pem (as per docs)
-if [[ ! -f privatecert.pem ]]; then
-  if [[ -f revolut_private.key ]]; then
-    echo "privatecert.pem not found; copying from revolut_private.key..."
-    cp revolut_private.key privatecert.pem
-  else
-    echo "Error: privatecert.pem not found and revolut_private.key not present in $CERT_DIR" >&2
-    exit 1
-  fi
+# openssl dgst -sign needs a *private* key PEM. This repo keeps it as revolut_private.key;
+# privatecert.pem may be a separate bundle (or cert-only), so prefer the explicit key file.
+if [[ -f revolut_private.key ]]; then
+  SIGN_KEY="revolut_private.key"
+elif [[ -f privatecert.pem ]]; then
+  SIGN_KEY="privatecert.pem"
+else
+  echo "Error: need revolut_private.key or privatecert.pem in $CERT_DIR" >&2
+  exit 1
+fi
+
+if ! openssl pkey -in "$SIGN_KEY" -noout >/dev/null 2>&1; then
+  echo "Error: $SIGN_KEY is not a usable private key PEM (openssl pkey -in failed)." >&2
+  exit 1
 fi
 
 # macOS-specific date syntax (-v)
@@ -77,15 +83,19 @@ echo -n "." >> client_assertion.txt
 # Add encoded and normalised payload
 cat payload.json | tr -d '\n' | tr -d '\r' | openssl enc -base64 -A | tr +/ -_ | tr -d '=' >> client_assertion.txt
 # Generate signature
-cat client_assertion.txt | tr -d '\n' | tr -d '\r' | openssl dgst -sha256 -sign privatecert.pem | openssl enc -base64 -A | tr +/ -_ | tr -d '=' > sign.txt
+cat client_assertion.txt | tr -d '\n' | tr -d '\r' | openssl dgst -sha256 -sign "$SIGN_KEY" | openssl enc -base64 -A | tr +/ -_ | tr -d '=' > sign.txt
 echo -n "." >> client_assertion.txt
 # Add signature
 cat sign.txt >> client_assertion.txt
 
 echo
 echo "client_assertion.txt generated in $CERT_DIR."
-echo
-echo "JWT (client_assertion):"
-cat client_assertion.txt
-echo
+if [[ "${REVOLUT_PRINT_JWT:-0}" == "1" ]]; then
+  echo
+  echo "JWT (client_assertion):"
+  cat client_assertion.txt
+  echo
+else
+  echo "[info] JWT not printed (set REVOLUT_PRINT_JWT=1 to print)."
+fi
 
