@@ -31,6 +31,28 @@ fsvc revolut status                  # local diagnostic (token freshness, config
 
 Distribution (Homebrew + AUR + meta-suite) is queued for v0.1.0; the tag triggers when goreleaser + CI are wired.
 
+## Bootstrap from 1Password (`x-fsvc` vault)
+
+Materialize `~/.config/fsvc/` on a new machine:
+
+```bash
+./scripts/bootstrap-from-1pass.sh -f   # requires `op` signed in
+fsvc revolut auth                      # refresh access_token
+```
+
+Vault **`x-fsvc`** items:
+
+| Item | Purpose |
+|---|---|
+| `fsvc revolut config` | `client_id`, `iss`, `redirect_uri`, `refresh_token`, `base_url` |
+| `rev bus api private key` | `revolut_private.key` document |
+| `rev bus api public cert` | `revolut_public.crt` document |
+
+The public cert in 1Password **must match** the cert uploaded in Revolut Business
+→ Settings → APIs for the active `client_id`.
+
+See [docs/PLAN.md](./docs/PLAN.md) for NAS + Tailscale setup.
+
 What's preserved under [`python-legacy/`](./python-legacy):
 
 - `rev/revolut_cert_setup.sh` — port lives in `internal/command/cert.go`
