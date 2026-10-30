@@ -98,6 +98,8 @@ func main() {
 		return
 	case "cert":
 		err = command.RunCert(g, subArgs)
+	case "pull":
+		err = command.RunPull(g, subArgs)
 	case "init":
 		err = command.RunInit(g, subArgs)
 	case "revolut":
@@ -132,6 +134,7 @@ func printUsage(w *os.File) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Subcommands:")
 	fmt.Fprintln(w, "  cert                  generate Revolut mTLS keypair")
+	fmt.Fprintln(w, "  pull                  copy the x-fsvc 1Password items onto this machine")
 	fmt.Fprintln(w, "  init                  scaffold ~/.config/fsvc/config.toml from CLI flags")
 	fmt.Fprintln(w, "  revolut authorize     one-shot OAuth flow (browser + local server + token swap)")
 	fmt.Fprintln(w, "  revolut exchange-code <CODE>")
@@ -149,6 +152,9 @@ func printUsage(w *os.File) {
 	fmt.Fprintln(w, "  -V                    verbose")
 	fmt.Fprintln(w, "  -v / --version        print version and exit")
 	fmt.Fprintln(w, "  -h / --help           show this help")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "When the certificate is already in 1Password:")
+	fmt.Fprintln(w, "  fsvc pull                                 # vault x-fsvc → ~/.config/fsvc")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "First-run walkthrough:")
 	fmt.Fprintln(w, "  1. fsvc cert                              # generate the mTLS keypair")

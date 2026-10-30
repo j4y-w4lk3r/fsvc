@@ -43,6 +43,10 @@ func New(cfg *config.Config) (*Client, error) {
 	}
 
 	tr := &http.Transport{
+		// A custom Transport does not use the environment proxy unless
+		// this is set. fsvc sets HTTPS_PROXY so only these calls leave
+		// through the VPS address Revolut has whitelisted.
+		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
 			MinVersion:   tls.VersionTLS12,

@@ -46,7 +46,7 @@ func (g *Globals) LoadConfig() (*config.Config, error) {
 			if path == "" {
 				path = config.DefaultPath()
 			}
-			return nil, fmt.Errorf("%w\n\nNo config at %s. To set one up:\n  1. fsvc cert            # generate the mTLS keypair\n  2. (upload the public cert in Revolut Business → Settings → APIs)\n  3. fsvc init            # interactive setup (coming in v0.1.x)\n     # OR copy and edit the example:\n     #   cp $(fsvc-share)/config.example.toml %s", err, path, path)
+			return nil, fmt.Errorf("%w\n\nNo config at %s. To set one up:\n  fsvc pull               # copy the x-fsvc 1Password items onto this machine\n  # or, for a brand new certificate:\n  1. fsvc cert            # generate the mTLS keypair\n  2. (upload the public cert in Revolut Business → Settings → APIs)\n  3. fsvc init --client-id <ID> --redirect-uri http://localhost:8080/callback", err, path)
 		}
 		return nil, err
 	}
